@@ -1,0 +1,14 @@
+[Unit]
+Description=UPS State MQTT Reporting Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 -u ups_monitor.py -c example.config
+WorkingDirectory=/home/user/mqtt-ups-reporting
+StandardOutput=inherit
+StandardInput=inherit
+Restart=always
+User=user
+
+[Install]
+WantedBy=multi-user.target
