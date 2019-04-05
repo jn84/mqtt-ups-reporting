@@ -58,7 +58,7 @@ def get_timed_rotating_logger(ups_name, log_level):
 # Get the config file name
 parser = argparse.ArgumentParser(description='Monitor UPS via MQTT',
                                  epilog='Electricity is really just organized lightning',
-                                 prog='ups_reporting_controller.py')
+                                 prog='ups_controller.py')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
 parser.add_argument('-c', '--config', type=str, default='example.config', dest='config_file',
                     help='File name of the config file used to launch the daemon.'
