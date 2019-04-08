@@ -24,4 +24,4 @@ class UPSCommand:
             yield cmd
 
     def run_command(self, command, params=""):
-        self._ups_client.run_command(command + " " + params)
+        self._ups_client.run_command(self._ups_name , command + " " + params)
