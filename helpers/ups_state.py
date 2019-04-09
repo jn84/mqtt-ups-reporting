@@ -48,4 +48,4 @@ class UPSState:
         self._update_states()
         for key, value in self._dict_states.items():
             if value[1]:
-                yield [key, value[0]]
+                yield key, value[0]

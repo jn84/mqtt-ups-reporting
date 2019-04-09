@@ -42,12 +42,27 @@ class UPSCommand:
         for cmd in self._ls_ups_cmds:
             yield cmd
 
-    def run_command(self, command, params=None):
-        # Check if valid command
-        if command not in self._ls_ups_cmds:
-            self.log(ERROR, "UPSCommand: invalid command: " + command)
-            return
-        if params is not None and type(params) is str:
-            self._ups_client.run_command(self._ups_name, command + " " + params)
-        else:
-            self._ups_client.run_command(self._ups_name, command)
+    def run_command(self, command, params=""):
+        try:
+            print("Entered run_command in ups_cmd")
+            print("command: " + command)
+            print("params:  " + params)
+            # Check if valid command
+            if command not in self._ls_ups_cmds:
+                print("Command not in list of commands")
+                self.log(ERROR, "UPSCommand: invalid command: " + command)
+                return
+            self.log(INFO, "UPSCommand: Command: " + command)
+            self.log(INFO, "UPSCommand: Params: " + params)
+            #self.log(INFO, "UPSCommand: ")
+            #self.log(INFO, "UPSCommand: ")
+            #self.log(INFO, "UPSCommand: ")
+            if params is not "" and type(params) is str:
+                print("Sending command with params: " + command)
+                self._ups_client.run_command(self._ups_name, command + " " + params)
+            else:
+                self._ups_client.run_command(self._ups_name, command)
+                print("Sending command WITHOUT params: " + command)
+        except Exception as e:
+            print("ERROR!!!!  ")
+            print(str(e.args))

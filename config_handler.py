@@ -74,6 +74,16 @@ class UPSConfigurationHandler:
             'ups_name',
             False)
 
+        self.NUT_LOGIN = self.str_parse(
+            self.config['General']['nut_login'],
+            'nut_login',
+            True)
+
+        self.NUT_PASSWORD = self.str_parse(
+            self.config['General']['nut_password'],
+            'nut_password',
+            True)
+
         self.UPDATE_INTERVAL = self.int_parse(
             self.config['General']['update_interval'],
             'update_interval',
@@ -122,6 +132,11 @@ class UPSConfigurationHandler:
         self.MQTT_TOPIC_REPORT_UPS_DATA = self.str_parse(
             self.config['MQTTTopicConfig']['mqtt_topic_report_ups_data'],
             'mqtt_topic_report_ups_data',
+            False)
+
+        self.MQTT_TOPIC_ISSUED_COMMANDS = self.str_parse(
+            self.config['MQTTTopicConfig']['mqtt_topic_issued_commands'],
+            'mqtt_topic_issued_commands',
             False)
 
         if self.MQTT_CLIENT_ID == '' or self.MQTT_CLIENT_ID is None:

@@ -36,9 +36,12 @@ class UPSHandler:
         for cmd in self._ups_cmd.all_commands():
             yield cmd
 
-    def run_command(self, command, params=None):
+    def run_command(self, command, params=""):
+        print("Entered run_command in ups_handler")
+        print("command: " + command)
+        print("params:  " + params)
         self._ups_cmd.run_command(command, params)
 
     def get_updated_states(self):
-        for state in self._ups_state.get_state_data():
-            yield state
+        for key, value in self._ups_state.get_state_data():
+            yield key, value

@@ -1,18 +1,24 @@
 import argparse
+import json
 import logging
 import string
 import sys
+import time
 import traceback
+from os import access
+from os import path
+from os import mkdir
+from os import R_OK
+
 import paho.mqtt.client as mqtt
+
+
 import config_handler
 import ups_handler
 
 from configparser import Error as ConfigError
 from logging.handlers import TimedRotatingFileHandler
-from os import access
-from os import path
-from os import mkdir
-from os import R_OK
+
 
 # MAJOR.MINOR.BUGFIX
 VERSION = '0.1.0'
@@ -21,6 +27,7 @@ LOG_LEVEL = logging.DEBUG
 
 client = None
 logger = None
+ups = None
 
 _is_mqtt_connected = False
 
@@ -50,13 +57,19 @@ def get_timed_rotating_logger(ups_name, log_level):
 
     handler.setFormatter(formatter)
 
+    console_handler = logging.StreamHandler(sys.stdout)
+
+    console_handler.setFormatter(formatter)
+
     log_obj.addHandler(handler)
+
+    log_obj.addHandler(console_handler)
 
     return log_obj
 
 
 # Get the config file name
-parser = argparse.ArgumentParser(description='Monitor UPS via MQTT',
+parser = argparse.ArgumentParser(description='Monitor and control UPS via MQTT',
                                  epilog='Electricity is really just organized lightning',
                                  prog='ups_controller.py')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
@@ -88,22 +101,23 @@ except TypeError as e:
 
 logger = get_timed_rotating_logger(config.UPS_NAME,
                                    LOG_LEVEL)
+logger.log(logging.INFO, 'Configuration file successfully loaded')
 
-logger.log(logging.CRITICAL, "poop")
-
-logger.info('Configuration file successfully loaded')
-
-logger.info('Initializing handlers...')
+logger.log(logging.INFO, 'Initializing handlers...')
 
 ups = ups_handler.UPSHandler(config.UPS_NAME)
 
-logger.info('Defining definitions...')
+logger.log(logging.INFO, 'Defining definitions...')
+
+def log(loglevel, message):
+    logger.log(loglevel, message)
 
 def on_connect(client_local, userdata, flags, rc):
     global _is_mqtt_connected
     if rc == 0:  # Successful connection
-        logger.info('Setting up MQTT subscriptions and publishing initial state data')
-        logger.info('MQTT successfully connected on port:' + str(config.get_port()))
+        logger.log(logging.INFO, 'Setting up MQTT subscriptions')
+        client_local.subscribe(config.MQTT_TOPIC_ISSUED_COMMANDS + "/+")
+        logger.log(logging.INFO, 'MQTT successfully connected on port:' + str(config.get_port()))
         _is_mqtt_connected = True
     else:
         _is_mqtt_connected = False
@@ -114,49 +128,42 @@ def on_disconnect(client_local, userdata, rc):
     _is_mqtt_connected = False
 
 
+# Incoming UPS command messages
 def on_message(client_local, userdata, msg):
-    global _target_temperature
-    if msg.topic == config.MQTT_TOPIC_SET_TEMP_TARGET:
-        set_target_temperature(float(msg.payload))
-        client_local.publish(config.MQTT_TOPIC_REPORT_TEMP_TARGET,
-                             _target_temperature,
-                             qos=1,
-                             retain=True)
-        config.save_target_temp(str(_target_temperature))
+    log(logging.INFO, "command topic: " + msg.topic)
+    # print("before")
+    # if msg.payload is None:
+    #     print("payload is None")
+    # elif msg.payload == "":
+    #     print('Payload is ""')
+    # else:
+    #     print("Payload is NOT None")
+    #     print(msg.payload)
+    log(logging.INFO, "command payload: " + str(msg.payload))
+    print("after")
+    if config.MQTT_TOPIC_ISSUED_COMMANDS in msg.topic:
+        try:
+            print("parsing command data")
+            command_data = json.loads(msg.payload)
+            print("parsed command: " + command_data["command"])
+            print("parsed params: " + command_data["params"])
+        except ValueError:
+            log(logging.ERROR, "UPS Controller: MQTT parsing error. UPS command data improperly formatted."
+                               "Expected json k/v pairs, got something else. Ignoring command message."
+                               "Message: " + msg.payload)
+            return
+        if command_data["params"] == "":
+            print("command params were empty")
+            ups.run_command(command_data["command"], params="")
+        else:
+            print("command params were NOT empty")
+            ups.run_command(command_data["command"], command_data["params"])
+
+
     else:
         log(logging.ERROR,
             'Received message from non subscribed topic. This should never happen...: ' + str(msg.topic))
 
-
-def on_heater_state_change(state):
-    global client
-    if client is not None and _is_mqtt_connected:
-        client.publish(config.MQTT_TOPIC_REPORT_HEATER_STATE, state, qos=1, retain=True)
-        logger.info('Reporting heater state to MQTT. Current state: ' + str(state))
-
-
-def log(loglevel, message):
-    logger.log(loglevel, message)
-
-
-def parse_bool_payload(state_payload):
-    # Payloads are always 'True' or 'False' strings
-    state = state_payload.lower()
-    return state == 'true'
-
-
-def set_target_temperature(temp):
-    global _target_temperature, _target_temperature_lower, _target_temperature_upper, client
-    _target_temperature = temp
-    _target_temperature_lower = temp - config.TEMPERATURE_RANGE
-    _target_temperature_upper = temp + config.TEMPERATURE_RANGE
-
-
-heater.on_state_change = on_heater_state_change
-heater.on_log_message = on_log_message
-thermo.on_log_message = on_log_message
-
-set_target_temperature(config.TEMPERATURE_TARGET_DEFAULT)
 
 logger.info('Definitions successfully defined')
 logger.info('Configuring MQTT client...')
@@ -183,40 +190,42 @@ logger.info('Creating MQTT connection to host: ' + config.MQTT_HOST)
 
 client.connect_async(config.MQTT_HOST, port=config.get_port(), keepalive=60)
 
-current_temp = 0.0
-last_temp = 0.0
-
+# noinspection PyBroadException
 try:
     client.loop_start()
 
+    # Publish available commands
+    ls_cmds = list()
+    for cmd in ups.get_commands():
+        ls_cmds.append(cmd)
+    ls_cmds.sort()
+    json_cmds = json.dumps(ls_cmds)
+
+    client.publish(
+        config.MQTT_TOPIC_REPORT_UPS_DATA + "/available-commands",
+        json_cmds,
+        qos=2,
+        retain=True
+    )
+
     while True:
-        # Get current temperature
-        current_temp = thermo.get_temperature(config.TEMPERATURE_UNIT)
+        for key, value in ups.get_updated_states():
+            st = dict()
+            st["state"] = key
+            st["data"] = value
+            json_data = json.dumps(st)
+            client.publish(
+                config.MQTT_TOPIC_REPORT_UPS_DATA + "/" + key,
+                json_data,
+                qos=1,
+                retain=True)
 
-        # Only publish if changed more than a tenth of a degree
-        # No need to flood the mqtt broker
-        if not math.isclose(current_temp, last_temp, abs_tol=0.1):
-            client.publish(config.MQTT_TOPIC_REPORT_TEMP, current_temp, qos=1, retain=True)
-            last_temp = current_temp
-            logger.debug('Got temp: ' + str(current_temp))
-            logger.debug('Target  : ' + str(_target_temperature))
-
-        if heater.state_out() is False and current_temp < _target_temperature_lower:
-            logger.info("Temperature below threshold. Powering heater on.")
-            heater.set_state(True)
-
-        elif heater.state_out() is True and current_temp > _target_temperature_upper:
-            logger.info("Temperature above threshold. Powering heater off.")
-            heater.set_state(False)
-
-        time.sleep(0.5)
+        time.sleep(config.UPDATE_INTERVAL)
 
 except KeyboardInterrupt:
     client.loop_stop()
-    logger.info('Thermostat controller stopped by keyboard input. Cleaning up and exiting...')
+    logger.info('UPS controller stopped by keyboard input. Cleaning up and exiting...')
 except:  # Phooey at your PEP 8 rules. I have no idea what exceptions I might run into
     tb = traceback.format_exc()
     logger.error(tb)
     logger.error('Unhandled exception. Quitting...')
-finally:
-    heater.cleanup()
