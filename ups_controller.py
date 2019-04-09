@@ -89,11 +89,13 @@ except TypeError as e:
 logger = get_timed_rotating_logger(config.UPS_NAME,
                                    LOG_LEVEL)
 
+logger.log(logging.CRITICAL, "poop")
+
 logger.info('Configuration file successfully loaded')
 
 logger.info('Initializing handlers...')
 
-ups = ups_handler.UPSHandler((((((((\(((((\\((\(((((((\(((\((((((())))))))\))))))))))\*))))))\\))\))))))
+ups = ups_handler.UPSHandler(config.UPS_NAME)
 
 logger.info('Defining definitions...')
 
@@ -122,7 +124,8 @@ def on_message(client_local, userdata, msg):
                              retain=True)
         config.save_target_temp(str(_target_temperature))
     else:
-        logger.error('Received message from non subscribed topic. This should never happen...: ' + str(msg.topic))
+        log(logging.ERROR,
+            'Received message from non subscribed topic. This should never happen...: ' + str(msg.topic))
 
 
 def on_heater_state_change(state):
@@ -132,8 +135,8 @@ def on_heater_state_change(state):
         logger.info('Reporting heater state to MQTT. Current state: ' + str(state))
 
 
-def on_log_message(message):
-    logger.debug(message)
+def log(loglevel, message):
+    logger.log(loglevel, message)
 
 
 def parse_bool_payload(state_payload):

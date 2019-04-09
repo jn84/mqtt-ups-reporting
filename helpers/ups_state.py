@@ -1,5 +1,12 @@
 # Monitor UPS state
 
+from logging import CRITICAL
+from logging import ERROR
+from logging import WARNING
+from logging import INFO
+from logging import DEBUG
+from logging import NOTSET
+
 from pynut2 import nut2 as nut
 
 class UPSState:
@@ -9,6 +16,9 @@ class UPSState:
 
     _ls_ups_vars = list()
     _dict_states = dict()
+
+    # Logger callback
+    on_log_message = None
 
     # Value List: [ current value (str/int/float), has updated (Bool) ]
 
@@ -20,6 +30,10 @@ class UPSState:
         for ups_var in self._ups_client.list_vars(self._ups_name):
             self._ls_ups_vars.append(ups_var)
             self._dict_states[ups_var] = [None, False]
+
+    def log(self, loglevel, message):
+        if self.on_log_message is not None:
+            self.on_log_message(loglevel, message)
 
     # Update state dictionary with latest data
     def _update_states(self):
