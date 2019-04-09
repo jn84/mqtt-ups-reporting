@@ -121,7 +121,7 @@ def on_connect(client_local, userdata, flags, rc):
     global _is_mqtt_connected
     if rc == 0:  # Successful connection
         logger.log(logging.INFO, 'Setting up MQTT subscriptions')
-        client_local.subscribe(config.MQTT_TOPIC_ISSUED_COMMANDS + "/+")
+        client_local.subscribe(config.MQTT_TOPIC_ISSUED_COMMANDS)
         logger.log(logging.INFO, 'MQTT successfully connected on port:' + str(config.get_port()))
         _is_mqtt_connected = True
     else:
@@ -187,10 +187,11 @@ try:
     client.loop_start()
 
     # Publish available commands
-    ls_cmds = list()
+    ls_cmds = dict()
+    i = 0
     for cmd in ups.get_commands():
-        ls_cmds.append(cmd)
-    ls_cmds.sort()
+        ls_cmds[str(i)] = cmd
+        i += 1
     json_cmds = json.dumps(ls_cmds)
 
     client.publish(
