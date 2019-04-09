@@ -57,13 +57,13 @@ def get_timed_rotating_logger(ups_name, log_level):
 
     handler.setFormatter(formatter)
 
-    #console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = logging.StreamHandler(sys.stdout)
 
-    #console_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
 
     log_obj.addHandler(handler)
 
-    #log_obj.addHandler(console_handler)
+    log_obj.addHandler(console_handler)
 
     return log_obj
 
@@ -138,20 +138,23 @@ def on_message(client_local, userdata, msg):
     if not config.NUT_USE_AUTH:
         logger.log(logging.WARNING, "UPS Controller: NUT authentication not used. Commands unavailable.")
         return
-    if config.MQTT_TOPIC_ISSUED_COMMANDS in msg.topic:
+    if msg.topic == config.MQTT_TOPIC_ISSUED_COMMANDS:
         try:
+            print(msg.payload)
             command_data = json.loads(msg.payload)
         except ValueError:
             log(logging.ERROR, "UPS Controller: MQTT parsing error. UPS command data improperly formatted."
                                "Expected json k/v pairs, got something else. Ignoring command message."
                                "Message: " + msg.payload)
             return
+        except Exception as e:
+            logger.log(logging.ERROR, e.args)
+            return
+
         if command_data["params"] == "":
             ups.run_command(command_data["command"], params="")
         else:
             ups.run_command(command_data["command"], command_data["params"])
-
-
     else:
         log(logging.ERROR,
             'Received message from non subscribed topic. This should never happen...: ' + str(msg.topic))
