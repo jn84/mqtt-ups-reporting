@@ -4,20 +4,6 @@ class UPSConfigurationHandler:
     config = None
     config_file = None
 
-    UPS_NAME = None
-    UPDATE_INTERVAL = None
-
-    MQTT_HOST = None
-    MQTT_PORT = None
-    MQTT_CLIENT_ID = None
-    MQTT_USE_AUTHENTICATION = None
-    MQTT_USERNAME = None
-    MQTT_PASSWORD = None
-    MQTT_USE_SSL = None
-    MQTT_PORT_SSL = None
-
-    MQTT_TOPIC_REPORT_UPS_DATA = None
-
     def generate_client_id(self):
         self.MQTT_CLIENT_ID = 'UPS_' + str(self.UPS_NAME)
 
@@ -73,6 +59,11 @@ class UPSConfigurationHandler:
             self.config['General']['ups_name'],
             'ups_name',
             False)
+
+        self.NUT_USE_AUTH = self.bool_parse(
+            self.config['General']['nut_use_auth'],
+            'nut_use_auth',
+            True)
 
         self.NUT_LOGIN = self.str_parse(
             self.config['General']['nut_login'],

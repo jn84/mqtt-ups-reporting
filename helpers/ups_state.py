@@ -1,14 +1,5 @@
 # Monitor UPS state
 
-from logging import CRITICAL
-from logging import ERROR
-from logging import WARNING
-from logging import INFO
-from logging import DEBUG
-from logging import NOTSET
-
-from pynut2 import nut2 as nut
-
 class UPSState:
     _ups_client = None
 
@@ -22,9 +13,9 @@ class UPSState:
 
     # Value List: [ current value (str/int/float), has updated (Bool) ]
 
-    def __init__(self, ups_name):
-        self._ups_client = nut.PyNUTClient()
+    def __init__(self, nut_client, ups_name):
         self._ups_name = ups_name
+        self._ups_client = nut_client
 
         # Initialize dictionary keys with all available states
         for ups_var in self._ups_client.list_vars(self._ups_name):

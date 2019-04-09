@@ -57,13 +57,13 @@ def get_timed_rotating_logger(ups_name, log_level):
 
     handler.setFormatter(formatter)
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    #console_handler = logging.StreamHandler(sys.stdout)
 
-    console_handler.setFormatter(formatter)
+    #console_handler.setFormatter(formatter)
 
     log_obj.addHandler(handler)
 
-    log_obj.addHandler(console_handler)
+    #log_obj.addHandler(console_handler)
 
     return log_obj
 
@@ -105,7 +105,12 @@ logger.log(logging.INFO, 'Configuration file successfully loaded')
 
 logger.log(logging.INFO, 'Initializing handlers...')
 
-ups = ups_handler.UPSHandler(config.UPS_NAME)
+if not config.NUT_USE_AUTH:
+    logger.log(logging.WARNING, "UPS Controller: NUT authentication not used. Commands unavailable.")
+    ups = ups_handler.UPSHandler(config.UPS_NAME)
+else:
+    ups = ups_handler.UPSHandler(config.UPS_NAME, config.NUT_LOGIN, config.NUT_PASSWORD)
+
 
 logger.log(logging.INFO, 'Defining definitions...')
 
@@ -130,33 +135,20 @@ def on_disconnect(client_local, userdata, rc):
 
 # Incoming UPS command messages
 def on_message(client_local, userdata, msg):
-    log(logging.INFO, "command topic: " + msg.topic)
-    # print("before")
-    # if msg.payload is None:
-    #     print("payload is None")
-    # elif msg.payload == "":
-    #     print('Payload is ""')
-    # else:
-    #     print("Payload is NOT None")
-    #     print(msg.payload)
-    log(logging.INFO, "command payload: " + str(msg.payload))
-    print("after")
+    if not config.NUT_USE_AUTH:
+        logger.log(logging.WARNING, "UPS Controller: NUT authentication not used. Commands unavailable.")
+        return
     if config.MQTT_TOPIC_ISSUED_COMMANDS in msg.topic:
         try:
-            print("parsing command data")
             command_data = json.loads(msg.payload)
-            print("parsed command: " + command_data["command"])
-            print("parsed params: " + command_data["params"])
         except ValueError:
             log(logging.ERROR, "UPS Controller: MQTT parsing error. UPS command data improperly formatted."
                                "Expected json k/v pairs, got something else. Ignoring command message."
                                "Message: " + msg.payload)
             return
         if command_data["params"] == "":
-            print("command params were empty")
             ups.run_command(command_data["command"], params="")
         else:
-            print("command params were NOT empty")
             ups.run_command(command_data["command"], command_data["params"])
 
 
