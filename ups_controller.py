@@ -57,13 +57,13 @@ def get_timed_rotating_logger(ups_name, log_level):
 
     handler.setFormatter(formatter)
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    #console_handler = logging.StreamHandler(sys.stdout)
 
-    console_handler.setFormatter(formatter)
+    #console_handler.setFormatter(formatter)
 
     log_obj.addHandler(handler)
 
-    log_obj.addHandler(console_handler)
+    #log_obj.addHandler(console_handler)
 
     return log_obj
 
